@@ -24,16 +24,12 @@ const getBalance = async (address: string) =>
 const getFormattedBalance = async (address: string) =>
   displayEther(await getBalance(address))
 
-const log = async (action?: string) => {
+const log = async () => {
   const [owner, user2] = await ethers.getSigners()
-  const state = {
+  console.table({
     User1: await getFormattedBalance(owner.address),
-    User1_Claimable: displayEther((await contract.buckets(bucketSlug)).claimable),
-    _: '----------------',
     User2: await getFormattedBalance(user2.address),
-  }
-  console.log(action)
-  console.table(state)
+  })
 }
 
 const waitFor = async (receipt: Promise<ContractTransactionResponse>) =>
@@ -41,9 +37,21 @@ const waitFor = async (receipt: Promise<ContractTransactionResponse>) =>
 
 describe("HateMe", function () {
   
+  it("deploy contract", async function () {
+    contract = await deployContract()
+  })
+
+  it("can only create lowercase bucket", async function () {
+    const [owner] = await ethers.getSigners()
+
+    const withCaps = ethers.toUtf8Bytes("wiThCapS")
+    await expect(
+      waitFor(contract.connect(owner).createBucket(withCaps))
+    ).to.revertedWithCustomError(contract, "StringMustBeLowerCase")
+  })
+
   it("create bucket", async function () {
     const [owner] = await ethers.getSigners()
-    contract = await deployContract()
 
     await expect(
       waitFor(contract.connect(owner).createBucket(bucketSlug))
@@ -56,6 +64,23 @@ describe("HateMe", function () {
     await expect(
       waitFor(contract.connect(owner).createBucket(bucketSlug))
     ).to.revertedWithCustomError(contract, "BucketAlreadyExists")
+  })
+
+  it("not enough funds to hate", async function () {
+    const [_, user2] = await ethers.getSigners()
+
+    await expect(
+      waitFor(contract.connect(user2).hateMe(bucketSlug, { value: 0 }))
+    ).to.revertedWithCustomError(contract, "InsufficientEntry")
+  })
+
+  it("bucket doesn't exist", async function () {
+    const [_, user2] = await ethers.getSigners()
+
+    const unknown = ethers.toUtf8Bytes("unknown")
+    await expect(
+      waitFor(contract.connect(user2).hateMe(unknown, { value: amount }))
+    ).to.revertedWithCustomError(contract, "BucketDoesNotExist")
   })
 
   it("hate someone", async function () {
