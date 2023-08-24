@@ -3,7 +3,7 @@
 - Find yourself a unique slug 🎯 (ex: julius) 
 - Create your bucket 🪣 at [HateMeButton](https://hate-me-button.vercel.app)
 - Share your link 🔗 : https://hate-me-button.vercel.app/julius
-- Let people 😡 hate you or 💖 you, either way you win
+- Let people 😡 hate you or 💖 you, either way you win 👌
 - Claim earnings 🌟 at any time
 
 ## Contract
