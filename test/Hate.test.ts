@@ -37,17 +37,12 @@ const waitFor = async (receipt: Promise<ContractTransactionResponse>) =>
 
 describe("HateMe", function () {
   
+  /**
+   * Positive tests
+   */
+
   it("deploy contract", async function () {
     contract = await deployContract()
-  })
-
-  it("can only create lowercase bucket", async function () {
-    const [owner] = await ethers.getSigners()
-
-    const withCaps = ethers.toUtf8Bytes("wiThCapS")
-    await expect(
-      waitFor(contract.connect(owner).createBucket(withCaps))
-    ).to.revertedWithCustomError(contract, "StringMustBeLowerCase")
   })
 
   it("create bucket", async function () {
@@ -56,31 +51,6 @@ describe("HateMe", function () {
     await expect(
       waitFor(contract.connect(owner).createBucket(bucketSlug))
     ).to.emit(contract, "BucketCreated")
-  })
-
-  it("bucket already exists", async function () {
-    const [owner] = await ethers.getSigners()
-
-    await expect(
-      waitFor(contract.connect(owner).createBucket(bucketSlug))
-    ).to.revertedWithCustomError(contract, "BucketAlreadyExists")
-  })
-
-  it("not enough funds to hate", async function () {
-    const [_, user2] = await ethers.getSigners()
-
-    await expect(
-      waitFor(contract.connect(user2).hateMe(bucketSlug, { value: 0 }))
-    ).to.revertedWithCustomError(contract, "InsufficientEntry")
-  })
-
-  it("bucket doesn't exist", async function () {
-    const [_, user2] = await ethers.getSigners()
-
-    const unknown = ethers.toUtf8Bytes("unknown")
-    await expect(
-      waitFor(contract.connect(user2).hateMe(unknown, { value: amount }))
-    ).to.revertedWithCustomError(contract, "BucketDoesNotExist")
   })
 
   it("hate someone", async function () {
@@ -100,14 +70,6 @@ describe("HateMe", function () {
       contract.connect(user2).kiddingILoveYou(bucketSlug, { value: amount })
     ).to.changeEtherBalance(contractAddr, amount)
   })
-
-  it("non-owner can't claim", async function () {
-    const [_, user2] = await ethers.getSigners()
-
-    await expect(
-      waitFor(contract.connect(user2).claim(bucketSlug))
-    ).to.revertedWithCustomError(contract, "YouAreNotTheOwner")
-  })
   
   it("owner can claim", async function () {
     const [owner] = await ethers.getSigners()
@@ -117,12 +79,34 @@ describe("HateMe", function () {
     ).to.changeEtherBalance(owner, amount + amount)
   })
 
-  it("can't claim twice", async function () {
-    const [owner] = await ethers.getSigners()
-    
+  /**
+   * Negative tests
+   */
+
+  it("bucket doesn't exist", async function () {
+    const [_, user2] = await ethers.getSigners()
+
+    const unknown = ethers.toUtf8Bytes("unknown")
     await expect(
-      waitFor(contract.connect(owner).claim(bucketSlug))
-    ).to.revertedWithCustomError(contract, "NothingToClaim")
+      waitFor(contract.connect(user2).hateMe(unknown, { value: amount }))
+    ).to.revertedWithCustomError(contract, "BucketDoesNotExist")
+  })
+
+  it("can only create lowercase bucket", async function () {
+    const [owner] = await ethers.getSigners()
+
+    const withCaps = ethers.toUtf8Bytes("wiThCapS")
+    await expect(
+      waitFor(contract.connect(owner).createBucket(withCaps))
+    ).to.revertedWithCustomError(contract, "StringMustBeLowerCase")
+  })
+  
+  it("bucket already exists", async function () {
+    const [owner] = await ethers.getSigners()
+
+    await expect(
+      waitFor(contract.connect(owner).createBucket(bucketSlug))
+    ).to.revertedWithCustomError(contract, "BucketAlreadyExists")
   })
 
   it("can't create bad slugs", async function () {
@@ -136,5 +120,29 @@ describe("HateMe", function () {
     await expect(
       waitFor(contract.createBucket(tooLong))
     ).to.revertedWithCustomError(contract, "SlugMustBeAMaximumOf50Characters")
+  })
+
+  it("not enough funds to hate", async function () {
+    const [_, user2] = await ethers.getSigners()
+
+    await expect(
+      waitFor(contract.connect(user2).hateMe(bucketSlug, { value: 0 }))
+    ).to.revertedWithCustomError(contract, "InsufficientEntry")
+  })
+
+  it("can't claim twice", async function () {
+    const [owner] = await ethers.getSigners()
+    
+    await expect(
+      waitFor(contract.connect(owner).claim(bucketSlug))
+    ).to.revertedWithCustomError(contract, "NothingToClaim")
+  })
+
+  it("non-owner can't claim", async function () {
+    const [_, user2] = await ethers.getSigners()
+
+    await expect(
+      waitFor(contract.connect(user2).claim(bucketSlug))
+    ).to.revertedWithCustomError(contract, "YouAreNotTheOwner")
   })
 })
