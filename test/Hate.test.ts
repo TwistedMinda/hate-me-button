@@ -124,7 +124,6 @@ describe("HateMe", function () {
   
   it("owner can claim", async function () {
     const [owner] = await ethers.getSigners()
-    console.log('network', network.name)
     if (network.name === "localhost") {
       await expectBalanceChange(
         owner.address,
