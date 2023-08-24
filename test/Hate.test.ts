@@ -80,7 +80,7 @@ describe("HateMe", function () {
       await expectBalanceChange(contractAddr, action, amount)
     } else {
       await expectFinish(action, res =>
-        res.to.emit(contract, "Loved").withArgs(bucketSlug, amount)
+        res.to.emit(contract, "Hated").withArgs(bucketSlug, amount)
       )
     }
   })

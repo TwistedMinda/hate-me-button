@@ -3,9 +3,8 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
-uint256 constant MINIMUM_ENTRY = 0.001 ether;
-
 contract HateMe {
+  uint256 constant MINIMUM_ENTRY = 0.001 ether;
 
   event BucketCreated(bytes, address);
   event Loved(bytes, uint amount);
