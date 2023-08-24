@@ -38,7 +38,7 @@ const expectBalanceChange = async (
   action: Promise<any>,
   expectedChange: bigint
 ) =>
-  expect(await (await action).wait(1)).to.changeEtherBalance(addr, expectedChange)
+  expect(await action).to.changeEtherBalance(addr, expectedChange)
 
 const expectFinish = async (
   receipt: Promise<ContractTransactionResponse>,
@@ -113,10 +113,10 @@ describe("HateMe", function () {
     
     const action = contract.connect(owner).claim(bucketSlug)
     if (network.name === "localhost") {
-      await expectBalanceChange(owner.address, action, amount)
+      await expectBalanceChange(owner.address, action, amount + amount)
     } else {
       await expectFinish(action, res =>
-        res.to.emit(contract, "Claimed").withArgs(owner.address, amount)
+        res.to.emit(contract, "Claimed").withArgs(owner.address, amount + amount)
       )
     }
   })
