@@ -7,7 +7,8 @@ import { HateMe } from "../typechain-types";
 import { ethers } from "hardhat";
 
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { ContractRunner } from "ethers";
+import { ContractRunner, ContractTransactionReceipt, ContractTransactionResponse, TransactionReceipt } from "ethers";
+const { network } = require('hardhat');
 
 const toWei = (val: number) => ethers.parseUnits(val.toString(), 18)
 const displayEther = (val: number | bigint) => ethers.formatUnits(val, 18)
@@ -15,7 +16,7 @@ const displayEther = (val: number | bigint) => ethers.formatUnits(val, 18)
 let contract: HateMe
 
 const bucketSlug = ethers.toUtf8Bytes("julius")
-const amount = ethers.parseUnits("5", 18)
+const amount = ethers.parseUnits("0.001", 18)
 
 const getBalance = async (address: string) =>
   await ethers.provider.getBalance(address)
@@ -35,13 +36,17 @@ const log = async (action?: string) => {
   console.table(state)
 }
 
+const waitFor = async (receipt: Promise<ContractTransactionResponse>) =>
+  await (await receipt).wait(1)
+
 describe("HateMe", function () {
+  
   it("create bucket", async function () {
     const [owner] = await ethers.getSigners()
     contract = await deployContract()
 
     await expect(
-      contract.connect(owner).createBucket(bucketSlug)
+      waitFor(contract.connect(owner).createBucket(bucketSlug))
     ).to.emit(contract, "BucketCreated")
   })
 
@@ -49,8 +54,8 @@ describe("HateMe", function () {
     const [owner] = await ethers.getSigners()
 
     await expect(
-      contract.connect(owner).createBucket(bucketSlug)
-    ).to.revertedWith("Bucket already exists")
+      waitFor(contract.connect(owner).createBucket(bucketSlug))
+    ).to.revertedWithCustomError(contract, "BucketAlreadyExists")
   })
 
   it("hate someone", async function () {
@@ -75,8 +80,8 @@ describe("HateMe", function () {
     const [_, user2] = await ethers.getSigners()
 
     await expect(
-      contract.connect(user2).claim(bucketSlug)
-    ).to.revertedWith("You're not the owner")
+      waitFor(contract.connect(user2).claim(bucketSlug))
+    ).to.revertedWithCustomError(contract, "YouAreNotTheOwner")
   })
   
   it("owner can claim", async function () {
@@ -91,8 +96,8 @@ describe("HateMe", function () {
     const [owner] = await ethers.getSigners()
     
     await expect(
-      contract.connect(owner).claim(bucketSlug)
-    ).to.revertedWith('Nothing to claim')
+      waitFor(contract.connect(owner).claim(bucketSlug))
+    ).to.revertedWithCustomError(contract, "NothingToClaim")
   })
 
   it("can't create bad slugs", async function () {
@@ -100,11 +105,11 @@ describe("HateMe", function () {
     const tooLong = ethers.toUtf8Bytes(Array(50).fill(0).toString())
     
     await expect(
-      contract.createBucket(tooShort)
-    ).to.reverted
+      waitFor(contract.createBucket(tooShort))
+    ).to.revertedWithCustomError(contract, "SlugMustBeAtLeast3Characters")
 
     await expect(
-      contract.createBucket(tooLong)
-    ).to.reverted
+      waitFor(contract.createBucket(tooLong))
+    ).to.revertedWithCustomError(contract, "SlugMustBeAMaximumOf50Characters")
   })
 })

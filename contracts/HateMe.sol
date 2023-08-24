@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import "hardhat/console.sol";
 
+uint256 constant MINIMUM_ENTRY = 0.001 ether;
+
 contract HateMe {
 
   event BucketCreated(bytes, address);
@@ -10,6 +12,15 @@ contract HateMe {
   event Hated(bytes, uint amount);
   event Claimed(address, uint amount);
 
+  error InsufficientEntry(uint256 required, uint256 provided);
+  error BucketAlreadyExists(bytes slug);
+  error BucketDoesNotExist(bytes slug);
+  error StringMustBeLowerCase();
+  error SlugMustBeAtLeast3Characters();
+  error SlugMustBeAMaximumOf50Characters();
+  error YouAreNotTheOwner();
+  error NothingToClaim();
+  
   struct Bucket {
     bytes slug;
     bool exists;
@@ -29,23 +40,18 @@ contract HateMe {
   mapping (bytes => Bucket) public buckets;
   Stats public stats;
 
-  modifier checkLowerCase(bytes memory str) {
-    _;
-    for (uint i = 0; i < str.length; i++) {
-      if (str[i] >= 0x41 && str[i] <= 0x5A) {
-        revert("String must be lowercase");
-      }
-    }
-  }
-
   /**
    * Create bucket
    */
-  function createBucket(bytes memory slug) external checkLowerCase(slug) {
-    require(slug.length >= 3, "slug must be at least 3 characters");
-    require(slug.length <= 50, "slug must be a maximum of 50 characters");
+  function createBucket(bytes memory slug) external onlyLowerCase(slug) {
+    if (slug.length < 3) {
+      revert SlugMustBeAtLeast3Characters();
+    }
+    if (slug.length > 50) {
+      revert SlugMustBeAMaximumOf50Characters();
+    }
     if (buckets[slug].exists) {
-      revert("Bucket already exists");
+      revert BucketAlreadyExists(slug);
     }
     buckets[slug] = Bucket(slug, true, 0, 0, 0, 0, msg.sender);
     emit BucketCreated(slug, msg.sender);
@@ -54,9 +60,12 @@ contract HateMe {
   /**
    * Hate someone
    */
-  function hateMe(bytes memory slug) external payable {
-    require(buckets[slug].exists, "Bucket does not exist");
-    require(msg.value >= 1 ether, "You must send some ether");
+  function hateMe(
+    bytes memory slug
+  ) external
+    payable
+    requireBucketExists(slug)
+    requireMinimumEntry {
     buckets[slug].hated += 1;
     buckets[slug].gains += msg.value;
     buckets[slug].claimable += msg.value;
@@ -68,9 +77,12 @@ contract HateMe {
   /**
    * Kidding, love someone
    */
-  function kiddingILoveYou(bytes memory slug) external payable {
-    require(buckets[slug].exists, "Bucket does not exist");
-    require(msg.value >= 1 ether, "You must send some ether");
+  function kiddingILoveYou(
+    bytes memory slug
+  ) external
+    payable
+    requireBucketExists(slug)
+    requireMinimumEntry {
     buckets[slug].loved += 1;
     buckets[slug].gains += msg.value;
     buckets[slug].claimable += msg.value;
@@ -82,13 +94,46 @@ contract HateMe {
   /**
    * Claim gains for slug
    */
-  function claim(bytes memory slug) external {
-    require(buckets[slug].owner == msg.sender, "You're not the owner");
+  function claim(bytes memory slug) external onlyOwner(slug) {
     uint amount = buckets[slug].claimable;
-    require(amount > 0, "Nothing to claim");
+    if (amount == 0) {
+      revert NothingToClaim();
+    }
     payable(msg.sender).transfer(amount);
     buckets[slug].claimable = 0;
     emit Claimed(msg.sender, amount);
   }
 
+  /**
+   * Modifiers
+   */
+  modifier onlyOwner(bytes memory slug) {
+    _;
+    if (buckets[slug].owner != msg.sender) {
+      revert YouAreNotTheOwner();
+    }
+  }
+
+  modifier onlyLowerCase(bytes memory str) {
+    _;
+    for (uint i = 0; i < str.length; i++) {
+      if (str[i] >= 0x41 && str[i] <= 0x5A) {
+        revert StringMustBeLowerCase();
+      }
+    }
+  }
+
+  modifier requireMinimumEntry() {
+    _;
+    if (msg.value < MINIMUM_ENTRY) {
+      revert InsufficientEntry(MINIMUM_ENTRY, msg.value);
+    }
+  }
+
+  modifier requireBucketExists(bytes memory slug) {
+    _;
+    if (!buckets[slug].exists) {
+      revert BucketDoesNotExist(slug);
+    }
+  }
 }
