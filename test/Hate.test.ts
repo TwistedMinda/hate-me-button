@@ -135,7 +135,7 @@ describe("HateMe", function () {
       await expectFinish(
         contract.connect(owner).claim(bucketSlug),
         res => res.to.emit(contract, "Claimed")
-          .withArgs(owner.address, amount)
+          .withArgs(owner.address, amount + amount)
       )
     }
   })
