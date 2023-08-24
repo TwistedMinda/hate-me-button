@@ -32,8 +32,29 @@ const log = async () => {
   })
 }
 
-const waitFor = async (receipt: Promise<ContractTransactionResponse>) =>
-  await (await receipt).wait(1)
+const expectBalanceChange = async (
+  addr: string,
+  action: Promise<any>,
+  expectedChange: bigint
+) => {
+  const tx = await action
+  expect(await tx.wait(1)).to.changeEtherBalance(addr, expectedChange)
+};
+
+const expectFinish = async (
+  receipt: Promise<ContractTransactionResponse>,
+  check: (res: Chai.Assertion) => void
+) => {
+  const res = await receipt
+  return check(await expect(await res.wait(1)))
+}
+
+const expectError = async (
+  receipt: Promise<ContractTransactionResponse>,
+  error: string
+) => {
+  return await expect(receipt).to.revertedWithCustomError(contract, error)
+}
 
 describe("HateMe", function () {
   
@@ -47,102 +68,141 @@ describe("HateMe", function () {
 
   it("create bucket", async function () {
     const [owner] = await ethers.getSigners()
-
-    await expect(
-      waitFor(contract.connect(owner).createBucket(bucketSlug))
-    ).to.emit(contract, "BucketCreated")
+    
+    await expectFinish(
+      contract.connect(owner).createBucket(bucketSlug),
+      (res) => res.to.emit(contract, "BucketCreated")
+    )
   })
 
   it("hate someone", async function () {
     const [_, user2] = await ethers.getSigners()
     const contractAddr = await contract.getAddress()   
 
-    await expect(
-      contract.connect(user2).hateMe(bucketSlug, { value: amount })
-    ).to.changeEtherBalance(contractAddr, amount)
+    if (network.name === "localhost") {
+      await expectBalanceChange(
+        contractAddr,
+        contract.connect(user2).hateYou(bucketSlug, { value: amount }),
+        amount
+      )
+    } else {
+      await expectFinish(
+        contract.connect(user2).hateYou(bucketSlug, { value: amount }),
+        res => res.to.emit(contract, "Hated")
+          .withArgs(bucketSlug, amount)
+      )
+    }
   })
 
   it("love someone", async function () {
     const [_, user2] = await ethers.getSigners()
     const contractAddr = await contract.getAddress() 
 
-    await expect(
-      contract.connect(user2).kiddingILoveYou(bucketSlug, { value: amount })
-    ).to.changeEtherBalance(contractAddr, amount)
+    if (network.name === "localhost") {
+      await expectBalanceChange(
+        contractAddr,
+        contract.connect(user2).kiddingILoveYou(bucketSlug, { value: amount }),
+        amount
+      )
+    } else {
+      await expectFinish(
+        contract.connect(user2).kiddingILoveYou(bucketSlug, { value: amount }),
+        res => res.to.emit(contract, "Loved")
+          .withArgs(bucketSlug, amount)
+      )
+    }
+  })
+
+  it("non-owner can't claim", async function () {
+    const [_, user2] = await ethers.getSigners()
+
+    await expectError(
+      contract.connect(user2).claim(bucketSlug),
+      "YouAreNotTheOwner"
+    )
   })
   
   it("owner can claim", async function () {
     const [owner] = await ethers.getSigners()
-    
-    await expect(
-      contract.connect(owner).claim(bucketSlug)
-    ).to.changeEtherBalance(owner, amount + amount)
+    console.log('network', network.name)
+    if (network.name === "localhost") {
+      await expectBalanceChange(
+        owner.address,
+        contract.connect(owner).claim(bucketSlug),
+        amount + amount
+      )
+    } else {
+      await expectFinish(
+        contract.connect(owner).claim(bucketSlug),
+        res => res.to.emit(contract, "Claimed")
+          .withArgs(owner.address, amount)
+      )
+    }
   })
 
   /**
    * Negative tests
    */
 
+  it("bucket already exists", async function () {
+    const [owner] = await ethers.getSigners()
+
+    await expectError(
+      contract.connect(owner).createBucket(bucketSlug),
+      "BucketAlreadyExists"
+    )
+  })
+
   it("bucket doesn't exist", async function () {
     const [_, user2] = await ethers.getSigners()
 
     const unknown = ethers.toUtf8Bytes("unknown")
-    await expect(
-      waitFor(contract.connect(user2).hateMe(unknown, { value: amount }))
-    ).to.revertedWithCustomError(contract, "BucketDoesNotExist")
+    await expectError(
+      contract.connect(user2).hateYou(unknown, { value: amount }),
+      "BucketDoesNotExist"
+    )
   })
 
   it("can only create lowercase bucket", async function () {
     const [owner] = await ethers.getSigners()
 
     const withCaps = ethers.toUtf8Bytes("wiThCapS")
-    await expect(
-      waitFor(contract.connect(owner).createBucket(withCaps))
-    ).to.revertedWithCustomError(contract, "StringMustBeLowerCase")
-  })
-  
-  it("bucket already exists", async function () {
-    const [owner] = await ethers.getSigners()
-
-    await expect(
-      waitFor(contract.connect(owner).createBucket(bucketSlug))
-    ).to.revertedWithCustomError(contract, "BucketAlreadyExists")
+    await expectError(
+      contract.connect(owner).createBucket(withCaps),
+      "StringMustBeLowerCase"
+    )
   })
 
   it("can't create bad slugs", async function () {
     const tooShort = ethers.toUtf8Bytes("ju")
     const tooLong = ethers.toUtf8Bytes(Array(50).fill(0).toString())
     
-    await expect(
-      waitFor(contract.createBucket(tooShort))
-    ).to.revertedWithCustomError(contract, "SlugMustBeAtLeast3Characters")
+    await expectError(
+      contract.createBucket(tooShort),
+      "SlugMustBeAtLeast3Characters"
+    )
 
-    await expect(
-      waitFor(contract.createBucket(tooLong))
-    ).to.revertedWithCustomError(contract, "SlugMustBeAMaximumOf50Characters")
+    await expectError(
+      contract.createBucket(tooLong),
+      "SlugMustBeAMaximumOf50Characters"
+    )
   })
 
   it("not enough funds to hate", async function () {
     const [_, user2] = await ethers.getSigners()
 
-    await expect(
-      waitFor(contract.connect(user2).hateMe(bucketSlug, { value: 0 }))
-    ).to.revertedWithCustomError(contract, "InsufficientEntry")
+    await expectError(
+      contract.connect(user2).hateYou(bucketSlug, { value: 0 }),
+      "InsufficientEntry"
+    )
   })
 
   it("can't claim twice", async function () {
     const [owner] = await ethers.getSigners()
     
-    await expect(
-      waitFor(contract.connect(owner).claim(bucketSlug))
-    ).to.revertedWithCustomError(contract, "NothingToClaim")
-  })
-
-  it("non-owner can't claim", async function () {
-    const [_, user2] = await ethers.getSigners()
-
-    await expect(
-      waitFor(contract.connect(user2).claim(bucketSlug))
-    ).to.revertedWithCustomError(contract, "YouAreNotTheOwner")
+    await expectError(
+      contract.connect(owner).claim(bucketSlug),
+      "NothingToClaim"
+    )
   })
 })

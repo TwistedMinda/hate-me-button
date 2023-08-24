@@ -60,7 +60,7 @@ contract HateMe {
   /**
    * Hate someone
    */
-  function hateMe(
+  function hateYou(
     bytes memory slug
   ) external
     payable

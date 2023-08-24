@@ -10,12 +10,13 @@ const config: HardhatUserConfig = {
       url: process.env.SEP_RPC_URL ?? '',
       chainId: 11155111,
       accounts: [process.env.PRIVATE_KEY ?? '', process.env.PRIVATE_KEY_2 ?? ''],
+      gasPrice: 3000000000,
     },
     goerli: {
       url: process.env.GOE_RPC_URL ?? '',
       chainId: 5,
       accounts: [process.env.PRIVATE_KEY ?? '', process.env.PRIVATE_KEY_2 ?? ''],
-      gasPrice: 1000000000,
+      gasPrice: 3000000000,
     },
   },
   mocha: {
