@@ -8,6 +8,7 @@ import { ethers } from "hardhat";
 
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { ContractRunner, ContractTransactionReceipt, ContractTransactionResponse, TransactionReceipt } from "ethers";
+
 const { network } = require('hardhat');
 
 const toWei = (val: number) => ethers.parseUnits(val.toString(), 18)
@@ -36,25 +37,20 @@ const expectBalanceChange = async (
   addr: string,
   action: Promise<any>,
   expectedChange: bigint
-) => {
-  const tx = await action
-  expect(await tx.wait(1)).to.changeEtherBalance(addr, expectedChange)
-};
+) =>
+  expect(await (await action).wait(1)).to.changeEtherBalance(addr, expectedChange)
 
 const expectFinish = async (
   receipt: Promise<ContractTransactionResponse>,
   check: (res: Chai.Assertion) => void
-) => {
-  const res = await receipt
-  return check(await expect(await res.wait(1)))
-}
+) => 
+  check(await expect(await (await receipt).wait(1)))
 
 const expectError = async (
   receipt: Promise<ContractTransactionResponse>,
   error: string
-) => {
-  return await expect(receipt).to.revertedWithCustomError(contract, error)
-}
+) =>
+  await expect(receipt).to.revertedWithCustomError(contract, error)
 
 describe("HateMe", function () {
   
@@ -79,17 +75,12 @@ describe("HateMe", function () {
     const [_, user2] = await ethers.getSigners()
     const contractAddr = await contract.getAddress()   
 
+    const action = contract.connect(user2).hateYou(bucketSlug, { value: amount })
     if (network.name === "localhost") {
-      await expectBalanceChange(
-        contractAddr,
-        contract.connect(user2).hateYou(bucketSlug, { value: amount }),
-        amount
-      )
+      await expectBalanceChange(contractAddr, action, amount)
     } else {
-      await expectFinish(
-        contract.connect(user2).hateYou(bucketSlug, { value: amount }),
-        res => res.to.emit(contract, "Hated")
-          .withArgs(bucketSlug, amount)
+      await expectFinish(action, res =>
+        res.to.emit(contract, "Loved").withArgs(bucketSlug, amount)
       )
     }
   })
@@ -98,17 +89,12 @@ describe("HateMe", function () {
     const [_, user2] = await ethers.getSigners()
     const contractAddr = await contract.getAddress() 
 
+    const action = contract.connect(user2).kiddingILoveYou(bucketSlug, { value: amount })
     if (network.name === "localhost") {
-      await expectBalanceChange(
-        contractAddr,
-        contract.connect(user2).kiddingILoveYou(bucketSlug, { value: amount }),
-        amount
-      )
+      await expectBalanceChange(contractAddr, action, amount)
     } else {
-      await expectFinish(
-        contract.connect(user2).kiddingILoveYou(bucketSlug, { value: amount }),
-        res => res.to.emit(contract, "Loved")
-          .withArgs(bucketSlug, amount)
+      await expectFinish(action, res =>
+        res.to.emit(contract, "Loved").withArgs(bucketSlug, amount)
       )
     }
   })
@@ -124,17 +110,13 @@ describe("HateMe", function () {
   
   it("owner can claim", async function () {
     const [owner] = await ethers.getSigners()
+    
+    const action = contract.connect(owner).claim(bucketSlug)
     if (network.name === "localhost") {
-      await expectBalanceChange(
-        owner.address,
-        contract.connect(owner).claim(bucketSlug),
-        amount + amount
-      )
+      await expectBalanceChange(owner.address, action, amount)
     } else {
-      await expectFinish(
-        contract.connect(owner).claim(bucketSlug),
-        res => res.to.emit(contract, "Claimed")
-          .withArgs(owner.address, amount + amount)
+      await expectFinish(action, res =>
+        res.to.emit(contract, "Claimed").withArgs(owner.address, amount)
       )
     }
   })
