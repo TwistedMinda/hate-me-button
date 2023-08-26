@@ -1,8 +1,8 @@
 ### Usage
 
-- Find yourself a unique slug 🎯 (ex: julius) 
+- Find yourself a unique slug 🎯 (ex: 1234) 
 - Create your bucket 🪣 at [HateMeButton](https://hate-me.vercel.app/)
-- Share your link 🔗 : https://hate-me.vercel.app/julius
+- Share your link 🔗 : https://hate-me.vercel.app/1234
 - Let people 😡 hate you or 💖 you, either way you win 👌
 - Claim earnings 🌟 at any time
 
