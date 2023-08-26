@@ -1,7 +1,9 @@
-import { deployContract } from "../artifacts/contracts/src/tools";
+import { deployContract, verifyContract } from "../artifacts/contracts/src/tools";
 
 async function main() {
-  await deployContract()
+  const contract = await deployContract()
+  const address = await contract.getAddress()
+  await verifyContract(address, [])
 }
 
 // We recommend this pattern to be able to use async/await everywhere

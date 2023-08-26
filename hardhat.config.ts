@@ -19,6 +19,11 @@ const config: HardhatUserConfig = {
       gasPrice: 3000000000,
     },
   },
+  etherscan: {
+    apiKey: {
+      sepolia: process.env.SEP_SCAN_KEY || ''
+    }
+  },
   mocha: {
     timeout: 100000000
   }
