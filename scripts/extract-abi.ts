@@ -4,7 +4,7 @@ import path from 'path';
 export const extractABI = (name: string, destiation?: string) => {
   const dir = path.resolve(
     __dirname,
-    `../artifacts/contracts/src/v0.8/${name}.sol/${name}.json`
+    `../artifacts/contracts/${name}.sol/${name}.json`
   );
   console.log('dir')
   const file = fs.readFileSync(dir, 'utf8');
@@ -24,4 +24,4 @@ export const CONTRACT_INTERFACE = (
   }
 };
 
-extractABI('RandomCandyContract', process.env.ABI_EXTRACT_DESTINATION);
+extractABI('HateMe', process.env.ABI_EXTRACT_DESTINATION);
